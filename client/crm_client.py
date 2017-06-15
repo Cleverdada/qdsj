@@ -18,11 +18,17 @@ from exception.BaseError import ServerError
 CONNECT_TIMEOUT = 100
 READ_TIMEOUT = 5 * 60
 VERSION = "1.0.0"
+# HEADERS = {
+#     'Content-type': 'application/json;charset=utf-8',
+#     'Content-Encoding': 'gzip',
+#     'User-Agent': 'SyncForCRM/%s-%s' % (VERSION, os.name)
+# }
+
 HEADERS = {
-    'Content-type': 'text/html;charset=utf-8',
-    'Content-Encoding': 'gzip',
+    'Content-type': 'application/json;charset=utf-8',
     'User-Agent': 'SyncForCRM/%s-%s' % (VERSION, os.name)
 }
+
 timeout = (CONNECT_TIMEOUT, READ_TIMEOUT)
 
 
@@ -32,7 +38,7 @@ def catch_httpfailed(func):
             return func(*args, **kwargs)
         except requests.ConnectionError, e:
             trace(e)
-            raise Exception(u"网络连接不可用，无法连接到BDP，请检查您的网络配置。")
+            raise Exception(u"网络连接不可用，无法连接到服务端，请检查您的网络配置。")
 
     return _func
 
@@ -61,12 +67,13 @@ class HttpClient(object):
                 if payload:
                     payload_str = u'%s' % json.dumps(payload, cls=Encoder)
                     # gzip
-                    s = StringIO.StringIO()
-                    data = gzip.GzipFile(fileobj=s, mode='w')
-                    data.write(payload_str)
-                    data.close()
+                    # s = StringIO.StringIO()
+                    # data = gzip.GzipFile(fileobj=s, mode='w')
+                    # data.write(payload_str)
+                    # data.close()
+                    # zip_value = s.getvalue()
                     start_request = time.time()
-                    res = requests.post(_url, data=s.getvalue(), headers=HEADERS, verify=False, timeout=timeout)
+                    res = requests.post(_url, data=payload_str, headers=HEADERS, verify=False, timeout=timeout)
                 else:
                     start_request = time.time()
                     res = requests.get(_url, headers=HEADERS, verify=False, timeout=timeout)
@@ -89,13 +96,13 @@ class HttpClient(object):
             time.time() - start_request
         ))
 
-        if result['status'] != '0':
+        if result['status'] != 0:
             message = '{errstr} {request_id}'.format(**result)
             raise ServerError(result['status'], message)
-        return result['result']
+        return result.get('result')
 
     def tb_max_id(self, ds_name, tb_name):
-        url = '%s/api/tb/maxid' % self.url_prefix
+        url = '%s/api/tb/max_id' % self.url_prefix
         param = {
             'ds_name': ds_name,
             'tb_name': tb_name,
@@ -103,7 +110,10 @@ class HttpClient(object):
         return self._request(url, param=param)
 
     def tb_push(self, ds_name, tb_name, fields, data, extra_field):
+        if not data:
+            return
         url = '%s/api/tb/push' % self.url_prefix
+        data = data[0:1]
         payload = {
             'ds_name': ds_name,
             'tb_name': tb_name,

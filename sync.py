@@ -42,7 +42,7 @@ class SyncCRM(object):
         max_id = self.http_client.tb_max_id(db_name, tb_name).get("max_id")
         table_info.update({"increase_value": max_id})
         yaml_util.dump(table_info, table_path)
-        info().info(u"max id change to %s" % max_id)
+        info().info(u"max id change to %s " % max_id)
         return
 
     def push_data(self, db_name, tb_name, field_names, data, extra_field):
@@ -70,7 +70,7 @@ class SyncCRM(object):
         field_type = field.get("field_type")
         field_name = field.get("field_name")
         if field_type in ('datetime', 'date'):
-            return u'cast(`%s` as datetime)' % (field_name)
+            return u'cast(`%s` as datetime) as `%s`' % (field_name, field_name)
         else:
             return u'`%s`' % (field_name)
 
