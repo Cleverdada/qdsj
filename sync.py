@@ -35,7 +35,7 @@ class SyncCRM(object):
         while data:
             self.get_max_id(table_info, table_path, self.db)
             data = self.fetch_data(table_info)
-            self.push_data(self.db, table_name, data, field_names, extra_field)
+            self.push_data(self.db, table_name, field_names, data, extra_field)
 
     def get_max_id(self, table_info, table_path, db_name):
         tb_name = table_info.get("table_name")

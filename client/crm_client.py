@@ -110,10 +110,9 @@ class HttpClient(object):
         return self._request(url, param=param)
 
     def tb_push(self, ds_name, tb_name, fields, data, extra_field):
-        if not data:
+        if not len(data):
             return
         url = '%s/api/tb/push' % self.url_prefix
-        data = data[0:1]
         payload = {
             'ds_name': ds_name,
             'tb_name': tb_name,
