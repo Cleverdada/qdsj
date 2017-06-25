@@ -18,55 +18,46 @@ except NameError:
     _unicode = False
 
 
-class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
-    def __init__(self, filename, when='h', interval=1, backupCount=0,
-                 encoding=None, delay=0, utc=0, debug=False, supress_abs_warn=True):
-        # if the given filename contains no path, we make an absolute path
-        filename = os.path.join(log_path, filename)
-        TimedRotatingFileHandler.__init__(self, filename, when, interval, backupCount, encoding, delay, utc)
-        self.currentSuffix = time.strftime(self.suffix, time.localtime())
-        self.doRollover()
-        self.stream_lock = open(filename.replace(".log", "") + ".lock", "w")
+class OpendsStreamHandler(StreamHandler):
+    def _emit(self, record):
+        """
+        Emit a record.
 
-    def acquire(self):
-        """ Acquire thread and file locks. Also re-opening log file when running
-        in 'degraded' mode. """
-        # handle thread lock
-        Handler.acquire(self)
-        lock(self.stream_lock, LOCK_EX)
-        if self.stream.closed:
-            self.mode = 'a'
-            self.stream = self._open()
-
-    def release(self):
+        If a formatter is specified, it is used to format the record.
+        The record is then written to the stream with a trailing newline.  If
+        exception information is present, it is formatted using
+        traceback.print_exception and appended to the stream.  If the stream
+        has an 'encoding' attribute, it is used to determine how to do the
+        output to the stream.
+        """
         try:
-            if self.stream:
-                self.stream.flush()
-        finally:
-            try:
-                unlock(self.stream_lock)
-            finally:
-                # release thread lock
-                Handler.release(self)
+            msg = self.format(record)
+            stream = self.stream
+            fs = "%s\n"
+            if not _unicode:  # if no unicode support...
+                stream.write(fs % msg)
+            else:
+                try:
+                    if isinstance(msg, unicode) and getattr(stream, 'encoding', None):
+                        ufs = u'%s\n'
+                        try:
+                            stream.write(ufs % msg)
+                        except UnicodeEncodeError:
+                            # Printing to terminals sometimes fails. For example,
+                            # with an encoding of 'cp1251', the above write will
+                            # work if written to a stream opened or wrapped by
+                            # the codecs module, but fail when writing to a
+                            # terminal even when the codepage is set to cp1251.
+                            # An extra encoding step seems to be needed.
+                            stream.write((ufs % msg).encode(stream.encoding))
+                    else:
+                        stream.write(fs % msg)
+                except UnicodeError:
+                    stream.write(fs % msg.encode("UTF-8"))
+            self.flush()
+        except (KeyboardInterrupt, SystemExit):
+            raise
+        except:
+            self.handleError(record)
 
-    def shouldRollover(self, record):
-        newSuffix = time.strftime(self.suffix, time.localtime())
-        if newSuffix != self.currentSuffix:
-            return 1
-        return 0
 
-    def doRollover(self):
-        if self.stream:
-            self.stream.close()
-        # get the time that this sequence started at and make it a TimeTuple
-        dfn = self.baseFilename + "." + self.currentSuffix
-        # dst file exists infers that the other process has renamed the file
-        # so just open the basefile again
-        if not os.path.exists(dfn) and os.path.exists(self.baseFilename):
-            try:
-                os.rename(self.baseFilename, dfn)
-            except Exception:
-                pass
-        self.mode = 'a'
-        self.stream = self._open()
-        self.currentSuffix = time.strftime(self.suffix, time.localtime())
