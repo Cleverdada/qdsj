@@ -52,7 +52,7 @@ class SyncCRM(object):
         cursor = db_helper.create_cursor(self.connection)
         tb_name = table_info.get("table_name")
         fields = table_info.get("fields")
-        sql = u"select %s from %s %s" % (self.field_join(fields), tb_name, self.where_condition(table_info))
+        sql = u"select %s from %s %s order by id asc" % (self.field_join(fields), tb_name, self.where_condition(table_info))
         info().info(sql)
         cursor.execute("use `%s`;" % self.db)
         cursor.execute(sql)
